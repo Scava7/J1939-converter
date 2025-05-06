@@ -1,77 +1,63 @@
-import tkinter as tk
-from tkinter import ttk
+def stampa_can_id_29bit(hex_str):
+    numero = int(hex_str, 16)
+    can_id_29bit = numero & 0x1FFFFFFF
+    binario = format(can_id_29bit, '029b')  # MSB (bit 28) è binario[0]
 
-def pgn_to_canid():
-    try:
-        pgn_input = entry_pgn.get().strip()
-        base = 16 if pgn_input_base.get() == 'hex' else 10
-        pgn = int(pgn_input, base)
+    def bin_to_int(bitstr):
+        return int(bitstr, 2)
 
-        if pgn < 0 or pgn > 0xFFFF:
-            output_var.set("PGN fuori range valido (0–65535)")
-            return
+    def bits(start_bit, end_bit):
+        """Estrae i bit da start_bit a end_bit inclusi, secondo la numerazione J1939 (bit 28 a 0)"""
+        start_idx = 28 - start_bit
+        end_idx = 28 - end_bit + 1
+        return binario[start_idx:end_idx]
+    
+    Priority        = bits(28, 26)   #Priority
+    Reserved        = bits(25, 25)   #Reserved
+    DataPage        = bits(24, 24)   #Data Page
+    PDU_Format      = bits(23, 16)   #Parameter Group Number (PDU Format)
+    PDU_Specific    = bits(15, 8)    #Parameter Group Number (PDU Specific)
+    Source_Address  = bits(7, 0)      #Source Address
 
-        priority = 3
-        source_address = 0
+    # Calcolo PGN
+    PDU_Format_dec = bin_to_int(PDU_Format)
+    PDU_Specific_dec = bin_to_int(PDU_Specific)
 
-        pf = (pgn >> 8) & 0xFF
-        ps = pgn & 0xFF
+    print(PDU_Format_dec)
+    print(PDU_Specific_dec)
+    
+    if PDU_Format_dec >= 0xF0:
+        pgn = (PDU_Format_dec << 8) | PDU_Specific_dec
+    else:
+        pgn = (PDU_Format_dec << 8)
 
-        if pf < 240:
-            output_var.set("Il PGN fornito non è broadcast (PF < 240)")
-            return
+    print(f"Hex: {hex_str} -> CAN ID J1939 (29 bit): {binario}")
+    print("Bit:    28    25  24  23    16   15     8   7     0")
+    print("        |     |   |   |      |   |      |   |     |")
+    print("Campo:  Pri   R   DP  PF------   PS------   SA-----")
+    
+    print("        " + "   ".join([
+        Priority,
+        Reserved,
+        DataPage,
+        PDU_Format,
+        PDU_Specific,
+        Source_Address,
+    ]))
 
-        can_id = (priority << 26) | (pf << 16) | (ps << 8) | source_address
-        output_var.set(f"CAN ID = {hex(can_id)} ({can_id})")
-    except ValueError:
-        output_var.set("Input PGN non valido")
+    print(f"\n -> PGN: {pgn} (decimale), {hex(pgn)} (esadecimale)")
 
-def canid_to_pgn():
-    try:
-        canid_input = entry_canid.get().strip()
-        base = 16 if canid_input_base.get() == 'hex' else 10
-        canid = int(canid_input, base)
+        # Informazioni aggiuntive
+    print(f" -> Tipo messaggio: {'PDU2 (broadcast)' if PDU_Format_dec >= 240 else 'PDU1 (destinato)'}")
+    
+    if PDU_Format_dec < 240:
+        print(f" -> Indirizzo destinatario: {PDU_Specific_dec}")
+    else:
+        print(f" -> Messaggio broadcast (PS fa parte del PGN)")
 
-        pf = (canid >> 16) & 0xFF
-        ps = (canid >> 8) & 0xFF
+    print(f" -> Priority: {bin_to_int(Priority)}")
+    print(f" -> Indirizzo sorgente (SA): {bin_to_int(Source_Address)}")
 
-        if pf >= 240:
-            pgn = (pf << 8) | ps
-        else:
-            pgn = pf << 8
 
-        output_var.set(f"PGN = {hex(pgn)} ({pgn})")
-    except ValueError:
-        output_var.set("Input CAN ID non valido")
-
-# Interfaccia grafica
-root = tk.Tk()
-root.title("Convertitore PGN ⇄ CAN ID")
-
-# Selettori esadecimale/decimale
-pgn_input_base = tk.StringVar(value='hex')
-canid_input_base = tk.StringVar(value='hex')
-
-# PGN input
-ttk.Label(root, text="PGN:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
-entry_pgn = ttk.Entry(root)
-entry_pgn.grid(row=0, column=1, padx=5, pady=5)
-ttk.Button(root, text="→ CAN ID", command=pgn_to_canid).grid(row=0, column=2, padx=5)
-
-ttk.Radiobutton(root, text="Hex", variable=pgn_input_base, value='hex').grid(row=0, column=3)
-ttk.Radiobutton(root, text="Dec", variable=pgn_input_base, value='dec').grid(row=0, column=4)
-
-# CAN ID input
-ttk.Label(root, text="CAN ID:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
-entry_canid = ttk.Entry(root)
-entry_canid.grid(row=1, column=1, padx=5, pady=5)
-ttk.Button(root, text="→ PGN", command=canid_to_pgn).grid(row=1, column=2, padx=5)
-
-ttk.Radiobutton(root, text="Hex", variable=canid_input_base, value='hex').grid(row=1, column=3)
-ttk.Radiobutton(root, text="Dec", variable=canid_input_base, value='dec').grid(row=1, column=4)
-
-# Output
-output_var = tk.StringVar()
-ttk.Label(root, textvariable=output_var, foreground="blue").grid(row=2, column=0, columnspan=5, pady=10)
-
-root.mainloop()
+# Esempio d'uso
+stampa_can_id_29bit("0x18FD9400")
