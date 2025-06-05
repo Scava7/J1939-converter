@@ -20,6 +20,6 @@ def calcola_can_id_da_lista(pgn_input, source_address, priority=6):
         print(f"PGN: {pgn:<6} -> CAN ID: {format(can_id, '08X')}")
 
 # Esempio d'uso
-input_pgns = "64948, 64923, 65110"
-source_address = 0
+input_pgns = "65110, 64830, 65110"
+source_address = 61
 calcola_can_id_da_lista(input_pgns, source_address)
